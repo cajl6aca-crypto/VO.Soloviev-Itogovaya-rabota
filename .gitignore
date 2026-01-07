@@ -1,0 +1,13 @@
+# Окружение Python
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+
+# Настройки PyCharm
+.idea/
+
+# Данные и временные файлы
+data/finance_data_2026.csv
+.pytest_cache/
