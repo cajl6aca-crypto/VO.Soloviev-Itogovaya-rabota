@@ -106,3 +106,81 @@ class FinanceApp:
 
         self.lbl_balance = ttk.Label(filter_frame, text="Баланс: 0.00", font=("Arial", 12, "bold"))
         self.lbl_balance.pack(side="right", padx=15)
+
+
+                             values=(idx, r['Дата'].strftime("%d.%m.%Y"), r['Тип'], r['Категория'], r['Сумма'],
+                                     r['Комментарий']))
+
+        all_data = storage.load_all_data()
+        self.cb_filter_cat['values'] = ["Все категории"] + sorted(all_data['Категория'].unique().tolist())
+
+        balance = storage.calculate_balance(df)
+        self.lbl_balance.config(text=f"Итог по выборке: {balance:,.2f}", foreground="green" if balance >= 0 else "red")
+
+    def on_select(self, event):
+        #Перенос данных из таблицы в поля ввода
+        selected = self.tree.selection()
+        if not selected: return
+        vals = self.tree.item(selected)['values']
+        if not vals: return
+
+        self.selected_idx = vals[0]
+
+        self.ent_date.delete(0, tk.END);
+        self.ent_date.insert(0, vals[1])
+        self.cb_type.set(vals[2])
+        self.ent_cat.delete(0, tk.END);
+        self.ent_cat.insert(0, vals[3])
+        self.ent_sum.delete(0, tk.END);
+        self.ent_sum.insert(0, vals[4])
+        self.ent_comm.delete(0, tk.END);
+        self.ent_comm.insert(0, vals[5])
+
+        self.btn_save.config(text="Сохранить изменения")
+
+    def handle_save(self):
+        #Сохранение новой или обновленной записи
+        d, t, c, s, comm = self.ent_date.get(), self.cb_type.get(), self.ent_cat.get(), self.ent_sum.get(), self.ent_comm.get()
+
+        if not utils.validate_date_format(d): return messagebox.showerror("Ошибка", "Дата должна быть дд.мм.2026")
+        if not utils.validate_amount(s): return messagebox.showerror("Ошибка", "Введите число (сумма)")
+        if not all([utils.validate_not_empty(x) for x in [c, comm]]): return messagebox.showerror("Ошибка",
+                                                                                                  "Заполните поля")
+
+        df = storage.load_all_data()
+        new_row = [d, t, c, float(s), comm]
+
+        if self.selected_idx is not None:
+            df.loc[int(self.selected_idx)] = new_row
+            messagebox.showinfo("Успех", "Запись обновлена")
+        else:
+            df.loc[len(df)] = new_row
+            messagebox.showinfo("Успех", "Запись добавлена")
+
+        storage.save_dataframe(df)
+        self.refresh_table()
+        self.clear_fields()
+
+    def handle_delete(self):
+        #Удаление записи
+        if self.selected_idx is None: return messagebox.showerror("Ошибка", "Выберите запись")
+        if not messagebox.askyesno("Удаление", "Удалить выбранную операцию?"): return
+
+        df = storage.load_all_data()
+        df = df.drop(index=int(self.selected_idx))
+        storage.save_dataframe(df)
+        self.refresh_table()
+        self.clear_fields()
+
+    def clear_fields(self):
+        #Сброс формы
+        self.selected_idx = None
+        self.ent_date.delete(0, tk.END);
+        self.ent_date.insert(0, datetime.now().strftime("%d.%m.%Y"))
+        self.ent_cat.delete(0, tk.END);
+        self.ent_cat.insert(0, '')
+        self.ent_sum.delete(0, tk.END);
+        self.ent_sum.insert(0, '')
+        self.ent_comm.delete(0, tk.END);
+        self.ent_comm.insert(0, '')
+        self.btn_save.config(text="Сохранить запись")
